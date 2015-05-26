@@ -38,7 +38,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
-import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -51,7 +50,7 @@ import java.util.regex.Pattern;
  */
 public final class MorphiaPlugin extends PlayPlugin {
 
-    public static final String VERSION = "1.5.0";
+    public static final String VERSION = "1.6.0";
 
     public static void info(String msg, Object... args) {
         Logger.info(msg_(msg, args));
@@ -299,13 +298,13 @@ public final class MorphiaPlugin extends PlayPlugin {
         }
     }
 
-    private static Mongo mongo_;
+    private static MongoClient mongo_;
 
     /*
      * Connect using conf - morphia.db.host=host1,host2... -
      * morphia.db.port=port1,port2...
      */
-    private final Mongo connect_(String host, String port, MongoOptions options) {
+    private MongoClient connect_(String host, String port, MongoClientOptions options) {
         String[] ha = host.split("[,\\s;]+");
         String[] pa = port.split("[,\\s;]+");
         int len = ha.length;
@@ -314,7 +313,7 @@ public final class MorphiaPlugin extends PlayPlugin {
                     "host and ports number does not match");
         if (1 == len) {
             try {
-                return new Mongo(new ServerAddress(ha[0], Integer.parseInt(pa[0])), options);
+                return new MongoClient(new ServerAddress(ha[0], Integer.parseInt(pa[0])), options);
             } catch (Exception e) {
                 throw new ConfigurationException(String.format("Cannot connect to mongodb at %s:%s", host, port));
             }
@@ -330,13 +329,13 @@ public final class MorphiaPlugin extends PlayPlugin {
         if (addrs.isEmpty()) {
             throw new ConfigurationException("Cannot connect to mongodb: no replica can be connected");
         }
-        return new Mongo(addrs, options);
+        return getMongoClient(options, addrs);
     }
 
     /*
      * Connect using conf morphia.db.seeds=host1[:port1];host2[:port2]...
      */
-    private final Mongo connect_(String seeds, MongoOptions options) {
+    private MongoClient connect_(String seeds, MongoClientOptions options) {
         String[] sa = seeds.split("[;,\\s]+");
         List<ServerAddress> addrs = new ArrayList<ServerAddress>(sa.length);
         for (String s : sa) {
@@ -348,31 +347,31 @@ public final class MorphiaPlugin extends PlayPlugin {
             if (hp.length > 1) {
                 port = Integer.parseInt(hp[1]);
             }
-            try {
-                addrs.add(new ServerAddress(host, port));
-            } catch (UnknownHostException e) {
-                error(e, "error creating mongo connection to %s:%s", host, port);
-            }
+            addrs.add(new ServerAddress(host, port));
         }
         if (addrs.isEmpty()) {
             throw new ConfigurationException("Cannot connect to mongodb: no replica can be connected");
         }
-        return new Mongo(addrs, options);
+        return getMongoClient(options, addrs);
+    }
+
+    private MongoClient getMongoClient(MongoClientOptions options, List<ServerAddress> addrs) {
+        List<MongoCredential> credentials = getCredentials();
+        if(credentials == null) {
+            return new MongoClient(addrs, options);
+        }
+        return new MongoClient(addrs, credentials, options);
     }
 
     /*
      * Connect using conf morphia.db.url=mongodb://fred:foobar@host:port/db
      */
-    private final Mongo connect_(MongoURI mongoURI) {
-        try {
-            return new Mongo(mongoURI);
-        } catch (UnknownHostException e) {
-            throw new ConfigurationException("Error creating mongo connection to " + mongoURI);
+    private MongoClient connect_(String url) {
+        List<MongoCredential> credentials = getCredentials();
+        if(credentials == null) {
+            return new MongoClient(new ServerAddress(url));
         }
-    }
-
-    public static BlobStorageService bss(KeyGenerator keygen, String ss) {
-        return BlobStorageService.valueOf(keygen, ss);
+        return new MongoClient(new ServerAddress(url), credentials);
     }
 
     public static Map<String, Class<? extends IStorageService>> ssMap = C.newMap("gfs", GridFSStorageService.class);
@@ -382,7 +381,7 @@ public final class MorphiaPlugin extends PlayPlugin {
 
     public static Class<? extends IStorageService> getStorageClass(String storage) {
         if (!configured_) {
-            // Rythm is precompiling app code before morphia plugin configured, let's 
+            // Rythm is precompiling app code before morphia plugin configured, let's
             // do it here
             new MorphiaPlugin().onConfigurationRead();
         }
@@ -467,13 +466,12 @@ public final class MorphiaPlugin extends PlayPlugin {
 
     private void configureConnection_() {
         Properties c = Play.configuration;
-        MongoOptions options = readMongoOptions(c);
+        MongoClientOptions options = readMongoOptions(c);
 
         String url = c.getProperty(PREFIX + "url");
         String seeds = c.getProperty(PREFIX + "seeds");
         if (!S.empty(url)) {
-            MongoURI mongoURI = new MongoURI(url);
-            mongo_ = connect_(mongoURI);
+            mongo_ = connect_(url);
         } else if (!S.empty(seeds)) {
             mongo_ = connect_(seeds, options);
         } else {
@@ -483,8 +481,8 @@ public final class MorphiaPlugin extends PlayPlugin {
         }
     }
 
-    private static MongoOptions readMongoOptions(Properties c) {
-        MongoOptions options = new MongoOptions();
+    private static MongoClientOptions readMongoOptions(Properties c) {
+        MongoClientOptions.Builder options = MongoClientOptions.builder();
         for (Field field : options.getClass().getFields()) {
             String property = c.getProperty("morphia.driver." + field.getName());
             if (StringUtils.isEmpty(property))
@@ -508,41 +506,31 @@ public final class MorphiaPlugin extends PlayPlugin {
                 error(e, "error setting mongo option " + field.getName());
             }
         }
-        return options;
+        return options.build();
+    }
+
+    private List<MongoCredential> getCredentials() {
+        Properties c = Play.configuration;
+
+        String dbName = c.getProperty(PREFIX + "name");
+        String username = c.getProperty(PREFIX + "username");
+        if(username == null) {
+            return null;
+        }
+        String password = c.getProperty(PREFIX + "password");
+        char[] passwordChars = password == null ? null : password.toCharArray();
+
+        return Arrays.asList(MongoCredential.createCredential(username, dbName, passwordChars));
     }
 
     @SuppressWarnings("unchecked")
     private void initMorphia_() {
         Properties c = Play.configuration;
-
-        String url = c.getProperty(PREFIX + "url");
         String dbName = c.getProperty(PREFIX + "name");
-        String username = c.getProperty(PREFIX + "username");
-        String password = c.getProperty(PREFIX + "password");
-
-        if (!S.empty(url)) {
-            MongoURI mongoURI = new MongoURI(url);
-            dbName = mongoURI.getDatabase();
-            // overwrite these if set via url
-            if (mongoURI.getUsername() != null) {
-                username = mongoURI.getUsername();
-            }
-            if (mongoURI.getPassword() != null) {
-                password = new String(mongoURI.getPassword());
-            }
-        }
 
         if (null == dbName) {
             warn("mongodb name not configured! using [test] db");
             dbName = "test";
-        }
-
-        DB db = mongo_.getDB(dbName);
-
-        if (!S.empty(username) && !S.empty(password)) {
-            if (!db.isAuthenticated() && !db.authenticate(username, password.toCharArray())) {
-                throw new RuntimeException("MongoDB authentication failed: " + dbName);
-            }
         }
 
         String loggerClass = c.getProperty("morphia.logger");
@@ -636,7 +624,7 @@ public final class MorphiaPlugin extends PlayPlugin {
     }
 
     // -- used to map field name to mongo db column name
-    public static Map<Class, Map<String, String>> colNameMap = new HashMap();
+    public static Map<Class, Map<String, String>> colNameMap = new HashMap<Class, Map<String, String>>();
 
     private void initColNameMap() {
         long l = System.currentTimeMillis();
@@ -778,7 +766,7 @@ public final class MorphiaPlugin extends PlayPlugin {
 
     @Override
     public void onInvocationException(Throwable e) {
-        if (e instanceof MongoException.Network) {
+        if (e instanceof MongoClientException) {
             error("MongoException.Network encountered. Trying to restart mongo...");
             configureConnection_();
             initMorphia_();
@@ -1059,7 +1047,8 @@ public final class MorphiaPlugin extends PlayPlugin {
         }
 
         public void deleteAll() {
-            ds().delete(ds().createQuery(clazz));
+            Query<?> query = ds().createQuery(clazz);
+            ds().delete(query);
         }
 
         public List<Model.Property> listProperties() {

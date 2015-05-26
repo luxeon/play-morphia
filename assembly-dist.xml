@@ -36,16 +36,12 @@ under the License.
             <includes>
                 <include>app/**</include>
                 <include>conf/**</include>
-                <include>documentation/**</include>
                 <include>src/**</include>
                 <include>assembly-dist.xml</include>
                 <include>LICENSE.txt</include>
                 <include>pom.xml</include>
                 <include>README.textile</include>
             </includes>
-            <excludes>
-                <exclude>documentation/api/**</exclude>
-            </excludes>
         </fileSet>
         <fileSet>
             <directory>${basedir}/samples-and-tests</directory>
@@ -56,10 +52,6 @@ under the License.
                 <include>*/public/**</include>
                 <include>*/test/**</include>
             </includes>
-        </fileSet>
-        <fileSet>
-            <directory>${project.build.directory}/apidocs</directory>
-            <outputDirectory>documentation/api</outputDirectory>
         </fileSet>
     </fileSets>
 

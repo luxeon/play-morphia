@@ -76,7 +76,6 @@ public class BlobController extends Controller {
                 int len = (int)col.count();
                 int i = 1;
                 final AtomicInteger errs = new AtomicInteger(0);
-                BlobStorageService ss = MorphiaPlugin.bss(KeyGenerator.BY_DATE, MorphiaPlugin.defaultStorage);
                 while (cur.hasNext()) {
                     DBObject obj = cur.next();
                     String s = (String)obj.get("name");
@@ -85,14 +84,6 @@ public class BlobController extends Controller {
                     }
                     Logger.info("migrating %s of %s: %s...", i++, len, s);
                     final String key = s;
-                    ss.migrate(key, new _.F1<Throwable, Void>() {
-                        @Override
-                        public Void apply(Throwable o) {
-                            errs.incrementAndGet();
-                            Logger.error(o, "error migrating blob: %s", key);
-                            return null;
-                        }
-                    });
                 }
                 migrating = false;
                 migrated = true;

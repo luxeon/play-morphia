@@ -41,7 +41,7 @@ public class GridFSStorageService extends StorageServiceBase implements IStorage
         if (null == file) {
             return null;
         }
-        ISObject sobj = SObject.of(key, IO.readContent(file.getInputStream()));
+        ISObject sobj = SObject.valueOf(key, IO.readContent(file.getInputStream()));
         String fn = file.getFilename();
         if (S.empty(fn)) {
             fn = S.random(8);
