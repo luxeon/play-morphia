@@ -4,6 +4,7 @@ import com.mongodb.*;
 import com.mongodb.gridfs.GridFS;
 import org.apache.commons.lang.StringUtils;
 import org.bson.types.CodeWScope;
+import org.bson.types.ObjectId;
 import org.mongodb.morphia.Datastore;
 import org.mongodb.morphia.DatastoreImpl;
 import org.mongodb.morphia.Key;
@@ -291,7 +292,8 @@ public class Model implements Serializable, play.db.Model {
     }
 
     public String getIdAsStr() {
-        return String.valueOf(getId());
+        ObjectId id = getId(ObjectId.class);
+        return id == null ? null : id.toString();
     }
 
     public final void setId(Object id) {
