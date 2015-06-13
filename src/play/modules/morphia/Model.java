@@ -292,8 +292,8 @@ public class Model implements Serializable, play.db.Model {
     }
 
     public String getIdAsStr() {
-        ObjectId id = getId(ObjectId.class);
-        return id == null ? null : id.toString();
+        Object id = getId();
+        return String.valueOf(id);
     }
 
     public final void setId(Object id) {
@@ -1376,7 +1376,7 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public <T> UpdateResults update(Model entity) {
-            return update("_id", entity.getId());
+            return update("_id", (ObjectId) entity.getId());
         }
 
         private <T> UpdateResults update(Query<T> q) {
