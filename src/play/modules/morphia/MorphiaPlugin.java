@@ -884,7 +884,7 @@ public final class MorphiaPlugin extends PlayPlugin {
             }
             return Model.create(paramNode, name, clazz, annotations);
         }
-        return super.bind(paramNode, name, clazz, type, annotations);
+        return super.bind(name, clazz, type, annotations, params);
     }
 
     @Override
