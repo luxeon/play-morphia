@@ -16,7 +16,6 @@ public class MongoOptionsTest extends UnitTest {
 	
     @Test
     public void testMongoOptionsCanBeSetInApplicationConf() {
-        
         assertEquals(11, options.getThreadsAllowedToBlockForConnectionMultiplier());
         assertEquals(12, options.getConnectionsPerHost());
         assertTrue(options.getReadPreference().isSlaveOk());

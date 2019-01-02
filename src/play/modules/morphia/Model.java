@@ -6,7 +6,7 @@ import org.apache.commons.lang.StringUtils;
 import org.bson.types.CodeWScope;
 import org.bson.types.ObjectId;
 import org.mongodb.morphia.Datastore;
-import org.mongodb.morphia.DatastoreImpl;
+import org.mongodb.morphia.FindAndModifyOptions;
 import org.mongodb.morphia.Key;
 import org.mongodb.morphia.Morphia;
 import org.mongodb.morphia.annotations.Embedded;
@@ -1076,23 +1076,17 @@ public class Model implements Serializable, play.db.Model {
     }
 
     public static class MorphiaUpdateOperations {
+
         public static Datastore ds() {
             return MorphiaPlugin.ds();
         }
 
-        private UpdateOpsImpl<? extends Model> u_;
-        private Class <? extends Model> c_;
+        private UpdateOperations<? extends Model> updateOperations;
+        private Class <? extends Model> clazz;
 
-        public UpdateOperations<? extends Model> getMorphiaUpdateOperations() {
-            return u_;
-        }
-
-        public DBObject getUpdateOperationsObject() {
-            return u_.getOps();
-        }
 
         public DBCollection col() {
-            return ds().getCollection(c_);
+            return ds().getCollection(clazz);
         }
 
         private MorphiaUpdateOperations() {
@@ -1100,8 +1094,8 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public MorphiaUpdateOperations(Class<? extends Model> clazz) {
-            u_ = new UpdateOpsImpl(clazz, ((DatastoreImpl)ds()).getMapper());
-            c_ = clazz;
+            this.clazz = clazz;
+            this.updateOperations = ds().createUpdateOperations(clazz);
         }
 
         private boolean multi = true;
@@ -1114,8 +1108,11 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public MorphiaUpdateOperations validation(boolean validate) {
-            if (validate) u_.enableValidation();
-            else u_.disableValidation();
+            if (validate) {
+                updateOperations.enableValidation();
+            } else {
+                updateOperations.disableValidation();
+            }
             return this;
         }
 
@@ -1128,8 +1125,9 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public MorphiaUpdateOperations isolate(boolean isolate) {
-            if (isolate) u_.isolated();
-            else {
+            if (isolate) {
+                updateOperations.isolated();
+            } else {
                 throw E.unsupport("Morphia does not support set isolated to false");
             }
             return this;
@@ -1148,17 +1146,25 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public MorphiaUpdateOperations add(String fieldExpr, Object value) {
-            u_.add(fieldExpr, value);
+            updateOperations.addToSet(fieldExpr, value);
             return this;
         }
 
         public MorphiaUpdateOperations add(String fieldExpr, Object value, boolean addDups) {
-            u_.add(fieldExpr, value, addDups);
+            if (addDups) {
+                updateOperations.push(fieldExpr, value);
+            } else {
+                updateOperations.addToSet(fieldExpr, value);
+            }
             return this;
         }
 
         public MorphiaUpdateOperations addAll(String fieldExpr, List<?> values, boolean addDups) {
-            u_.addAll(fieldExpr, values, addDups);
+            if (addDups) {
+                updateOperations.push(fieldExpr, values);
+            } else {
+                updateOperations.addToSet(fieldExpr, values);
+            }
             return this;
         }
 
@@ -1176,7 +1182,7 @@ public class Model implements Serializable, play.db.Model {
             for (int i = 0; i < keys.length; ++i) {
                 StringBuilder sb = new StringBuilder(keys[i]);
                 sb.setCharAt(0, Character.toLowerCase(sb.charAt(0)));
-                u_.dec(sb.toString());
+                updateOperations.dec(sb.toString());
             }
             return this;
         }
@@ -1187,10 +1193,10 @@ public class Model implements Serializable, play.db.Model {
                 fieldExpr = fieldExpr.substring(2);
             String[] keys = fieldExpr.split("(And|[,;\\s]+)");
 
-            for (int i = 0; i < keys.length; ++i) {
-                StringBuilder sb = new StringBuilder(keys[i]);
+            for (String key : keys) {
+                StringBuilder sb = new StringBuilder(key);
                 sb.setCharAt(0, Character.toLowerCase(sb.charAt(0)));
-                u_.inc(sb.toString());
+                updateOperations.inc(sb.toString());
             }
             return this;
         }
@@ -1209,28 +1215,28 @@ public class Model implements Serializable, play.db.Model {
             for (int i = 0; i < keys.length; ++i) {
                 StringBuilder sb = new StringBuilder(keys[i]);
                 sb.setCharAt(0, Character.toLowerCase(sb.charAt(0)));
-                u_.inc(sb.toString(), oneVal == null ? values[i] : oneVal);
+                updateOperations.inc(sb.toString(), oneVal == null ? values[i] : oneVal);
             }
             return this;
         }
 
         public MorphiaUpdateOperations removeAll(String fieldExpr, Object value) {
-            u_.removeAll(fieldExpr, value);
+            updateOperations.removeAll(fieldExpr, value);
             return this;
         }
 
         public MorphiaUpdateOperations removeAll(String fieldExpr, List<?> values) {
-            u_.removeAll(fieldExpr, values);
+            updateOperations.removeAll(fieldExpr, values);
             return this;
         }
 
         public MorphiaUpdateOperations removeFirst(String fieldExpr) {
-            u_.removeFirst(fieldExpr);
+            updateOperations.removeFirst(fieldExpr);
             return this;
         }
 
         public MorphiaUpdateOperations removeLast(String fieldExpr) {
-            u_.removeLast(fieldExpr);
+            updateOperations.removeLast(fieldExpr);
             return this;
         }
 
@@ -1248,13 +1254,13 @@ public class Model implements Serializable, play.db.Model {
             for (int i = 0; i < keys.length; ++i) {
                 StringBuilder sb = new StringBuilder(keys[i]);
                 sb.setCharAt(0, Character.toLowerCase(sb.charAt(0)));
-                u_.set(sb.toString(), oneVal == null ? values[i] : oneVal);
+                updateOperations.set(sb.toString(), oneVal == null ? values[i] : oneVal);
             }
             return this;
         }
 
         public MorphiaUpdateOperations unset(String fieldExpr) {
-            u_.unset(fieldExpr);
+            updateOperations.unset(fieldExpr);
             return this;
         }
 
@@ -1263,16 +1269,16 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public <T> T updateFirst(String query, Object... params) {
-            MorphiaQuery q = new MorphiaQuery(c_).findBy(query, params);
+            MorphiaQuery q = new MorphiaQuery(clazz).findBy(query, params);
             return (T)findAndModify(q);
         }
 
         public <T> T findAndModify(MorphiaQuery q) {
-            return (T)ds().findAndModify((Query)q.getMorphiaQuery(), (UpdateOperations)u_);
+            return (T)ds().findAndModify((Query)q.getMorphiaQuery(), (UpdateOperations) updateOperations);
         }
 
         public <T> T findAndModify(String query, Object... params) {
-            MorphiaQuery q = new MorphiaQuery(c_).findBy(query, params);
+            MorphiaQuery q = new MorphiaQuery(clazz).findBy(query, params);
             return (T)findAndModify(q);
         }
 
@@ -1281,16 +1287,17 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public <T> T updateFirst(boolean oldVersion, String query, Object... params) {
-            MorphiaQuery q = new MorphiaQuery(c_).findBy(query, params);
+            MorphiaQuery q = new MorphiaQuery(clazz).findBy(query, params);
             return (T)findAndModify(q, oldVersion);
         }
 
         public <T> T findAndModify(MorphiaQuery q, boolean oldVersion) {
-            return (T)ds().findAndModify((Query)q.getMorphiaQuery(), (UpdateOperations)u_, oldVersion);
+            FindAndModifyOptions options = new FindAndModifyOptions().returnNew(!oldVersion);
+            return (T)ds().findAndModify((Query)q.getMorphiaQuery(), (UpdateOperations) updateOperations, options);
         }
 
         public <T> T findAndModify(boolean oldVersion, String query, Object... params) {
-            MorphiaQuery q = new MorphiaQuery(c_).findBy(query, params);
+            MorphiaQuery q = new MorphiaQuery(clazz).findBy(query, params);
             return (T)findAndModify(q, oldVersion);
         }
 
@@ -1299,16 +1306,17 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public <T> T findAndModify(MorphiaQuery q, boolean oldVersion, boolean createIfMissing) {
-            return (T)ds().findAndModify((Query)q.getMorphiaQuery(), (UpdateOperations)u_, oldVersion, createIfMissing);
+            FindAndModifyOptions options = new FindAndModifyOptions().returnNew(!oldVersion).upsert(createIfMissing);
+            return (T)ds().findAndModify((Query)q.getMorphiaQuery(), (UpdateOperations) updateOperations, options);
         }
 
         public <T> UpdateResults update(MorphiaQuery q) {
-            return ds().update((Query<T>)q.getMorphiaQuery(), (UpdateOperations<T>)u_);
+            return ds().update((Query<T>)q.getMorphiaQuery(), (UpdateOperations<T>) updateOperations);
         }
 
         public <T> UpdateResults update(String query, Object... params) {
-            MorphiaQuery q = new MorphiaQuery(c_).findBy(query, params);
-            return ds().update((Query<T>)q.getMorphiaQuery(), (UpdateOperations<T>)u_);
+            MorphiaQuery q = new MorphiaQuery(clazz).findBy(query, params);
+            return ds().update((Query<T>)q.getMorphiaQuery(), (UpdateOperations<T>) updateOperations);
         }
 
         public <T> UpdateResults update(Model entity) {
@@ -1316,11 +1324,11 @@ public class Model implements Serializable, play.db.Model {
         }
 
         private <T> UpdateResults update(Query<T> q) {
-            return ds().update(q, (UpdateOperations<T>)u_);
+            return ds().update(q, (UpdateOperations<T>) updateOperations);
         }
 
         public <T> UpdateResults updateAll() {
-            return ds().update((QueryImpl) ds().createQuery(c_), (UpdateOperations<T>)u_);
+            return ds().update((QueryImpl) ds().createQuery(clazz), updateOperations);
         }
 
     }
@@ -1331,19 +1339,20 @@ public class Model implements Serializable, play.db.Model {
             return MorphiaPlugin.ds();
         }
 
-        private Query<? extends Model> q_;
-        private Class<? extends Model> c_;
+        private Query<? extends Model> query;
+        private Class<? extends Model> clazz;
+        private FindOptions options = new FindOptions();
 
         public Query<? extends Model> getMorphiaQuery() {
-            return q_;
+            return query;
         }
 
         public DBObject getQueryObject() {
-            return q_.getQueryObject();
+            return query.getQueryObject();
         }
 
         public DBCollection col() {
-            return ds().getCollection(c_);
+            return ds().getCollection(clazz);
         }
 
         // constructor for clone() usage
@@ -1352,22 +1361,23 @@ public class Model implements Serializable, play.db.Model {
 
         public MorphiaQuery(Class<? extends Model> clazz) {
             // super(clazz, ds().getCollection(clazz), ds());
-            q_ = (QueryImpl<? extends Model>) ds().createQuery(clazz);
-            c_ = clazz;
+            query = ds().createQuery(clazz);
+            this.clazz = clazz;
         }
 
         public MorphiaQuery(Class<? extends Model> clazz, DBCollection coll,
                 Datastore ds) {
             // super(clazz, coll, ds);
-            q_ = new QueryImpl(clazz, coll, ds);
-            c_ = clazz;
+            query = new QueryImpl(clazz, coll, ds);
+            this.clazz = clazz;
         }
 
         public MorphiaQuery(Class<? extends Model> clazz, DBCollection coll,
                 Datastore ds, int offset, int limit) {
             // super(clazz, coll, ds, offset, limit);
-            q_ = new QueryImpl(clazz, coll, ds).offset(offset).limit(limit);
-            c_ = clazz;
+            query = new QueryImpl(clazz, coll, ds);
+            this.clazz = clazz;
+            this.options.skip(offset).limit(limit);
         }
 
         public long delete() {
@@ -1376,7 +1386,7 @@ public class Model implements Serializable, play.db.Model {
             MorphiaPlugin.onBatchLifeCycleEvent(MorphiaEvent.ON_BATCH_DELETE, this);
             Model m = null;
             try {
-                Constructor c = c_.getDeclaredConstructor();
+                Constructor c = clazz.getDeclaredConstructor();
                 if (!c.isAccessible()) {
                     c.setAccessible(true);
                 }
@@ -1385,7 +1395,7 @@ public class Model implements Serializable, play.db.Model {
                 E.unexpected(e);
             }
             m.h_OnBatchDelete(this);
-            ds().delete(q_);
+            ds().delete(query);
             m.h_BatchDeleted(this);
             postEvent_(MorphiaEvent.BATCH_DELETED, this);
             return l;
@@ -1397,7 +1407,7 @@ public class Model implements Serializable, play.db.Model {
          * @return
          */
         public long count() {
-            return q_.countAll();
+            return query.count();
         }
 
         /**
@@ -1430,7 +1440,7 @@ public class Model implements Serializable, play.db.Model {
             for (int i = 0; i < keys.length; ++i) {
                 StringBuilder sb = new StringBuilder(keys[i]);
                 sb.setCharAt(0, Character.toLowerCase(sb.charAt(0)));
-                q_.filter(sb.toString(), params.length > 1 ? params[i] : oneVal);
+                this.query.filter(sb.toString(), params.length > 1 ? params[i] : oneVal);
             }
 
             return this;
@@ -1438,7 +1448,7 @@ public class Model implements Serializable, play.db.Model {
 
         @Override
         public String toString() {
-            return q_.toString();
+            return query.toString();
         }
 
         // ---------------------------------------------------------------------------
@@ -1456,7 +1466,7 @@ public class Model implements Serializable, play.db.Model {
          * @return A new query
          */
         public <T> MorphiaQuery from(int position) {
-            q_.offset(position);
+            options.skip(position);
             return this;
         }
 
@@ -1469,7 +1479,7 @@ public class Model implements Serializable, play.db.Model {
          * @return A list of entities
          */
         public <T extends Model> List<T> fetchAll() {
-            return (List<T>) q_.asList();
+            return (List<T>) query.asList(options);
         }
 
         /**
@@ -1480,7 +1490,8 @@ public class Model implements Serializable, play.db.Model {
          * @return A list of entities
          */
         public <T extends Model> List<T> fetch(int max) {
-            return (List<T>) q_.limit(max).asList();
+            options.limit(max);
+            return (List<T>) query.asList(options);
         }
 
         /**
@@ -1496,8 +1507,8 @@ public class Model implements Serializable, play.db.Model {
             if (page < 1) {
                 page = 1;
             }
-            return (List<T>) q_.offset((page - 1) * length).limit(length)
-                    .asList();
+            options.skip((page - 1) * length).limit(length);
+            return (List<T>) query.asList(options);
         }
 
         // ---------------------------------------------------------------------------
@@ -1506,51 +1517,51 @@ public class Model implements Serializable, play.db.Model {
 
         // for the sake of enhancement
         public Model _get() {
-            return q_.get();
+            return query.get(options);
         }
 
         public <T extends Model> T get() {
-            return (T) q_.get();
+            return (T) query.get(options);
         }
 
         public <T extends Model> MorphiaQuery filter(String condition,
                 Object value) {
-            q_.filter(condition, value);
+            query.filter(condition, value);
             return this;
         }
 
         public <T extends Model> Key<T> getKey() {
-            return (Key<T>) q_.getKey();
+            return (Key<T>) query.getKey();
         }
 
         public <T extends Model> Iterator<T> iterator() {
-            return (Iterator<T>) q_.iterator();
+            return (Iterator<T>) query.iterator();
         }
 
         public <T extends Model> List<T> asList() {
-            return (List<T>) q_.asList();
+            return (List<T>) query.asList(options);
         }
 
         public <T extends Model> List<Key<T>> asKeyList() {
-            return ((Query<T>) q_).asKeyList();
+            return ((Query<T>) query).asKeyList(options);
         }
 
         public <T extends Model> Iterable<T> fetch() {
-            return (Iterable<T>) q_.fetch();
+            return (Iterable<T>) query.fetch(options);
         }
 
         public Set<?> distinct(String key) {
-            key = MorphiaPlugin.mongoColName(c_, key);
-            return new HashSet(col().distinct(key.toString(), getQueryObject()));
+            key = MorphiaPlugin.mongoColName(clazz, key);
+            return new HashSet(col().distinct(key, getQueryObject()));
         }
 
         public Map<String, Long> cloud(String field) {
-            field = MorphiaPlugin.mongoColName(c_, field);
+            field = MorphiaPlugin.mongoColName(clazz, field);
             String map = String.format("function() {if (!this.%1$s) return; for (index in this.%1$s) emit(this.%1$s[index], 1);}", field);
             String reduce = "function(previous, current) {var count = 0; for (index in current) count += current[index]; return count;}";
-            MapReduceCommand cmd = new MapReduceCommand(col(), map, reduce, null, MapReduceCommand.OutputType.INLINE, q_.getQueryObject());
+            MapReduceCommand cmd = new MapReduceCommand(col(), map, reduce, null, MapReduceCommand.OutputType.INLINE, query.getQueryObject());
             MapReduceOutput out = col().mapReduce(cmd);
-            Map<String, Long> m = new HashMap<String, Long>();
+            Map<String, Long> m = new HashMap<>();
             for (Iterator<DBObject> itr = out.results().iterator(); itr.hasNext(); ) {
                 DBObject dbo = itr.next();
                 m.put((String) dbo.get("_id"), ((Double) dbo.get("value")).longValue());
@@ -1572,11 +1583,11 @@ public class Model implements Serializable, play.db.Model {
                     groupKeys = groupKeys.substring(2);
                 String[] sa = groupKeys.split("(And|[\\s,;]+)");
                 for (String s : sa) {
-                    key.put(MorphiaPlugin.mongoColName(c_, s), true);
+                    key.put(MorphiaPlugin.mongoColName(clazz, s), true);
                 }
             }
-            return (List<BasicDBObject>) ds().getCollection(c_).group(key,
-                    q_.getQueryObject(), initial, reduce, finalize);
+            return (List<BasicDBObject>) ds().getCollection(clazz).group(key,
+                    query.getQueryObject(), initial, reduce, finalize);
         }
 
         private AggregationResult aggregate_(String field, String mappedField, DBObject initial,
@@ -1586,11 +1597,11 @@ public class Model implements Serializable, play.db.Model {
                 initial = new BasicDBObject();
             initial.put(mappedField, initVal);
             return new AggregationResult(group(S.join(",", groupKeys),
-                    initial, reduce, finalize), field, c_);
+                    initial, reduce, finalize), field, clazz);
         }
 
         public AggregationResult groupMax(String field, String... groupKeys) {
-            String mappedField = MorphiaPlugin.mongoColName(c_, field);
+            String mappedField = MorphiaPlugin.mongoColName(clazz, field);
             String reduce = String
                     .format("function(obj, prev){if (obj.%s > prev.%s) prev.%s = obj.%s}",
                             mappedField, mappedField, mappedField, mappedField);
@@ -1603,7 +1614,7 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public AggregationResult groupMin(String field, String... groupKeys) {
-            String mappedField = MorphiaPlugin.mongoColName(c_, field);
+            String mappedField = MorphiaPlugin.mongoColName(clazz, field);
             String reduce = String
                     .format("function(obj, prev){if (obj.%s < prev.%s) prev.%s = obj.%s}",
                             mappedField, mappedField, mappedField, mappedField);
@@ -1616,7 +1627,7 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public AggregationResult groupAverage(String field, String... groupKeys) {
-            String mappedField = MorphiaPlugin.mongoColName(c_, field);
+            String mappedField = MorphiaPlugin.mongoColName(clazz, field);
             DBObject initial = new BasicDBObject();
             initial.put("__count", 0);
             initial.put("__sum", 0);
@@ -1634,7 +1645,7 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public AggregationResult groupSum(String field, String... groupKeys) {
-            String mappedField = MorphiaPlugin.mongoColName(c_, field);
+            String mappedField = MorphiaPlugin.mongoColName(clazz, field);
             String reduce = String.format(
                     "function(obj, prev){prev.%s+=obj.%s;}", mappedField, mappedField);
             return aggregate_(field, mappedField, null, 0L, reduce, null, groupKeys);
@@ -1645,108 +1656,109 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public AggregationResult groupCount(String... groupKeys) {
-            String mappedField = MorphiaPlugin.mongoColName(c_, "_id");
+            String mappedField = MorphiaPlugin.mongoColName(clazz, "_id");
             String reduce = String.format("function(obj, prev){prev.%s++;}", mappedField);
             return aggregate_("_id", mappedField, null, 0L, reduce, null, groupKeys);
         }
 
         public <T extends Model> Iterable<T> fetchEmptyEntities() {
-            return (Iterable<T>) q_.fetchEmptyEntities();
+            return (Iterable<T>) query.fetchEmptyEntities();
         }
 
         public <T extends Model> FieldEnd<? extends Query<T>> field(String field) {
-            return (FieldEnd<? extends Query<T>>) q_.field(field);
+            return (FieldEnd<? extends Query<T>>) query.field(field);
         }
 
         public <T extends Model> Iterable<Key<T>> fetchKeys() {
-            return ((Query<T>) q_).fetchKeys();
+            return ((Query<T>) query).fetchKeys();
         }
 
         public <T extends Model> FieldEnd<? extends CriteriaContainerImpl> criteria(
                 String field) {
-            return q_.criteria(field);
+            return query.criteria(field);
         }
 
         public <T extends Model> CriteriaContainer and(Criteria... criteria) {
-            return q_.and(criteria);
+            return query.and(criteria);
         }
 
         public long countAll() {
-            return q_.countAll();
+            CountOptions countOptions = new CountOptions().skip(options.getSkip()).limit(options.getLimit());
+            return query.count(countOptions);
         }
 
         public <T extends Model> CriteriaContainer or(Criteria... criteria) {
-            return q_.or(criteria);
+            return query.or(criteria);
         }
 
         public <T extends Model> MorphiaQuery where(String js) {
-            q_.where(js);
+            query.where(js);
             return this;
         }
 
         public <T extends Model> MorphiaQuery where(CodeWScope js) {
-            q_.where(js);
+            query.where(js);
             return this;
         }
 
         public <T extends Model> MorphiaQuery order(String condition) {
-            q_.order(condition);
+            query.order(condition);
             return this;
         }
 
         public <T extends Model> MorphiaQuery limit(int value) {
-            q_.limit(value);
+            options.limit(value);
             return this;
         }
 
         public <T extends Model> MorphiaQuery batchSize(int value) {
-            q_.batchSize(value);
+            options.batchSize(value);
             return this;
         }
 
         public <T extends Model> MorphiaQuery offset(int value) {
-            q_.offset(value);
+            options.skip(value);
             return this;
         }
 
         public <T extends Model> MorphiaQuery enableValidation() {
-            q_.enableValidation();
+            query.enableValidation();
             return this;
         }
 
         public <T extends Model> MorphiaQuery disableValidation() {
-            q_.disableValidation();
+            query.disableValidation();
             return this;
         }
 
         public <T extends Model> MorphiaQuery hintIndex(String idxName) {
-            q_.hintIndex(idxName);
+            options.modifier("$hint", idxName);
             return this;
         }
 
         public <T extends Model> MorphiaQuery retrievedFields(boolean include,
                 String... fields) {
-            q_.retrievedFields(include, fields);
+            query.retrievedFields(include, fields);
             return this;
         }
 
         public <T extends Model> MorphiaQuery enableSnapshotMode() {
-            q_.enableSnapshotMode();
+            options.modifier("$snapshot", true);
             return this;
         }
 
         public <T extends Model> MorphiaQuery disableSnapshotMode() {
-            q_.disableSnapshotMode();
+            options.modifier("$snapshot", false);
             return this;
         }
 
         public <T extends Model> MorphiaQuery queryNonPrimary() {
-            q_.queryNonPrimary();
+            options.readPreference(ReadPreference.secondary());
             return this;
         }
 
         public <T extends Model> MorphiaQuery queryPrimaryOnly() {
-            q_.queryPrimaryOnly();
+            options.readPreference(ReadPreference.primary());
             return this;
         }
 
@@ -1756,7 +1768,7 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public <T extends Model> MorphiaQuery disableCursorTimeout() {
-            q_.disableCursorTimeout();
+            options.noCursorTimeout(true);
             return this;
         }
 
@@ -1766,18 +1778,18 @@ public class Model implements Serializable, play.db.Model {
         }
 
         public <T extends Model> MorphiaQuery enableCursorTimeout() {
-            q_.enableCursorTimeout();
+            options.noCursorTimeout(false);
             return this;
         }
 
         public Class<? extends Model> getEntityClass() {
-            return q_.getEntityClass();
+            return query.getEntityClass();
         }
 
         @Override
         public MorphiaQuery clone() {
             MorphiaQuery mq = new MorphiaQuery();
-            mq.q_ = q_.cloneQuery();
+            mq.query = query.cloneQuery();
             return mq;
         }
     }
