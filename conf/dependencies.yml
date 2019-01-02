@@ -47,18 +47,11 @@
 #        - trim value when processing where statement in Factory.fetch
 # 1.2.5 - mavenize project
 # 1.2.4d - Add BlobGsonAdapter and ModelFactoryGsonAdapter utilities
-self: play -> play-morphia 1.6.0
+self: play -> play-morphia 1.7.0
 require:
     - play 1.5.+
-    - org.mongodb -> mongo-java-driver 3.0.1
-    - org.mongodb.morphia -> morphia 1.0.1
-    - org.osgl -> osgl-tool 0.3-SNAPSHOT
-    - org.osgl -> osgl-logging 0.3-SNAPSHOT
-    - org.osgl -> osgl-storage 0.3-SNAPSHOT
-
-repositories:
-    - osgl:
-            type: iBiblio
-            root: "https://oss.sonatype.org/content/repositories/snapshots/"
-            contains:
-                - org.osgl -> *
+    - org.mongodb -> mongo-java-driver 3.9.1
+    - org.mongodb.morphia -> morphia 1.3.2
+    - org.osgl -> osgl-tool 1.19.0
+    - org.osgl -> osgl-logging 1.3.0
+    - org.osgl -> osgl-storage 1.8.0

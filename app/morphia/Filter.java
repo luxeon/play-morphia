@@ -47,13 +47,13 @@ public class Filter {
     public static String toString(List<Filter> filters) {
         if (null == filters)
             return "";
-        List<String> l = new ArrayList<String>();
+        List<String> l = new ArrayList<>();
         for (Filter f : filters) {
             String s = f.toString();
             if (!S.empty(s))
                 l.add(s);
         }
-        return null == filters ? null : S.join(" and ", l);
+        return S.join(" and ", l);
     }
 
 }
