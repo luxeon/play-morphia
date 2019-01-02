@@ -1,13 +1,11 @@
 package models;
 
-import play.modules.morphia.Blob;
-import play.modules.morphia.Model;
-
 import org.mongodb.morphia.annotations.Entity;
+import play.modules.morphia.Model;
 
 @SuppressWarnings("serial")
 @Entity(noClassnameStored = true)
-public class User extends PhotoHolder {
+public class User extends Model {
 
     @Column("nm")
     public String name;

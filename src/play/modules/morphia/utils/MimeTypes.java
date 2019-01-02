@@ -15,7 +15,7 @@ import java.util.Map;
  * To change this template use File | Settings | File Templates.
  */
 public enum MimeTypes {
-    _;
+    DEFAULT;
 
     private Map<String, String> m = new HashMap<String, String>();
 
@@ -67,7 +67,7 @@ public enum MimeTypes {
         String type = URLConnection.guessContentTypeFromName(fileName);
         if (null == type) {
             String suffix = "." + S.afterLast(fileName, ".");
-            type = _.get(suffix);
+            type = DEFAULT.get(suffix);
         }
         return type;
     }

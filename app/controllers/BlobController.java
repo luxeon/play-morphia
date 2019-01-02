@@ -11,8 +11,6 @@ import org.osgl.util.S;
 import org.osgl.util.Str;
 import play.Logger;
 import play.cache.Cache;
-import play.modules.morphia.Blob;
-import play.modules.morphia.BlobStorageService;
 import play.modules.morphia.MorphiaPlugin;
 import play.mvc.Controller;
 

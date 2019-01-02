@@ -15,7 +15,6 @@ import org.mongodb.morphia.annotations.Transient;
 import org.mongodb.morphia.mapping.Mapper;
 import org.mongodb.morphia.query.*;
 import org.osgl.exception.UnsupportedException;
-import org.osgl.util.C;
 import org.osgl.util.E;
 import org.osgl.util.S;
 import play.Logger;
@@ -624,7 +623,6 @@ public class Model implements Serializable, play.db.Model {
         postEvent_(MorphiaEvent.ON_DELETE, this);
         MorphiaPlugin.onLifeCycleEvent(MorphiaEvent.ON_DELETE, this);
         h_OnDelete();
-        deleteBlobs();
     }
 
     protected void h_OnDelete() {
@@ -649,26 +647,11 @@ public class Model implements Serializable, play.db.Model {
     protected void h_BatchDeleted(MorphiaQuery q) {
         // for enhancer usage
     }
-
-    protected void deleteBlobs() {
-        Map<String, String> blobKeys = __getBlobKeys();
-        for (Map.Entry<String, String> entry: blobKeys.entrySet()) {
-            bss(entry.getKey()).remove(entry.getValue());
-        }
-        deleteLegacyBlobs();
-    }
     
     private void deleteLegacyBlobs() {
         GridFS gfs = MorphiaPlugin.gridFs();
         Pattern ptn = Pattern.compile(getIdAsStr());
         gfs.remove(new BasicDBObject("name", ptn));
-    }
-
-    protected void deleteBlobsInBatch(MorphiaQuery q) {
-        q.retrievedFields(true, "__blobs");
-        for (Model model : q.asList()) {
-            model.deleteBlobs();
-        }
     }
 
     /**
@@ -946,16 +929,9 @@ public class Model implements Serializable, play.db.Model {
      */
     public final void _h_Loaded() {
         setSaved_();
-        if (null == __blobs) {
-            __blobs = C.newMap();
-        }
-        boolean saveBlobKeys = loadBlobs();
         h_Loaded();
         MorphiaPlugin.onLifeCycleEvent(MorphiaEvent.LOADED, this);
         postEvent_(MorphiaEvent.LOADED, this);
-        if (saveBlobKeys) {
-            _update(true, "__blobs", __blobs);
-        }
     }
 
     /**
@@ -1067,36 +1043,6 @@ public class Model implements Serializable, play.db.Model {
         // used by enhander
         return false;
     }
-    
-    protected BlobStorageService bss(String fieldName) {
-        throw toBeEnhanced();
-    }
-
-    private Map<String, String> __blobs = C.newMap();
-    
-    protected Map<String, String> __getBlobKeys() {
-        return C.map(__blobs);
-    }
-
-    protected void __setBlobKey(String field, String blobKey) {
-        E.NPE(field, blobKey);
-        __blobs.put(field, blobKey);
-    }
-
-    protected String __getBlobKey(String field) {
-        E.NPE(field);
-        return __blobs.get(field);
-    }
-
-    @Transient
-    transient protected final Map<String, Boolean> blobFieldsTracker = C.newMap();
-    protected final boolean __blobChanged(String fieldName) {
-        return (blobFieldsTracker.containsKey(fieldName) && blobFieldsTracker.get(fieldName));
-    }
-    
-    protected final void __setBlobChanged(String fieldName) {
-        blobFieldsTracker.put(fieldName, true);
-    }
 
     @Deprecated
     public String getBlobFileName(String fieldName) {
@@ -1106,16 +1052,6 @@ public class Model implements Serializable, play.db.Model {
     @Deprecated
     public static String getBlobFileName(Object id, String fieldName) {
         return String.format("%s_%s", StringUtils.capitalize(fieldName), id);
-    }
-    
-    protected void removeBlobs(MorphiaQuery q, String fieldName) {
-        q.retrievedFields(true, "__blobs");
-        for (Model model : q.asList()) {
-            String key = model.__getBlobKeys().get(fieldName);
-            if (null != key) {
-                bss(fieldName).remove(key);
-            }
-        }
     }
 
     // -- auto timestamp methods
@@ -1448,14 +1384,9 @@ public class Model implements Serializable, play.db.Model {
             } catch (Exception e) {
                 E.unexpected(e);
             }
-            if (null != m) {
-                m.h_OnBatchDelete(this);
-                m.deleteBlobsInBatch(this);
-            }
+            m.h_OnBatchDelete(this);
             ds().delete(q_);
-            if (null != m) {
-                m.h_BatchDeleted(this);
-            }
+            m.h_BatchDeleted(this);
             postEvent_(MorphiaEvent.BATCH_DELETED, this);
             return l;
         }

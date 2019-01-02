@@ -22,11 +22,11 @@
 #         - "new Blob() should not save the content into gridfs":https://github.com/greenlaw110/play-morphia/issues/107
 #         - "Morphia 1.2.14 is missing javassist dependency":https://github.com/greenlaw110/play-morphia/issues/106
 # 1.2.14  - Add <code>asMap</code> method to <code>AggregationResult</code> class
-#         _ "Model.cloud() function error":https://github.com/greenlaw110/play-morphia/issues/105
-#         _ "Group by field":https://github.com/greenlaw110/play-morphia/issues/102
-#         _ "Model.groupAverage doesn't respect Model.Column annotationhttps://github.com/greenlaw110/play-morphia/issues/98":
-#         _ "Application.conf morphia.autoTimestamp doesn't work at all":https://github.com/greenlaw110/play-morphia/issues/97
-#         _ "@Unique validation not working correctly when updating record":https://github.com/greenlaw110/play-morphia/issues/96
+#         DEFAULT "Model.cloud() function error":https://github.com/greenlaw110/play-morphia/issues/105
+#         DEFAULT "Group by field":https://github.com/greenlaw110/play-morphia/issues/102
+#         DEFAULT "Model.groupAverage doesn't respect Model.Column annotationhttps://github.com/greenlaw110/play-morphia/issues/98":
+#         DEFAULT "Application.conf morphia.autoTimestamp doesn't work at all":https://github.com/greenlaw110/play-morphia/issues/97
+#         DEFAULT "@Unique validation not working correctly when updating record":https://github.com/greenlaw110/play-morphia/issues/96
 # 1.2.13b - enable passing <code>null</code> to Model._update()
 #         - Hook <code>_update</code> to <code>@OnUpdate</code> and <code>@Updated</code> annotated functions
 #         - Cache entity feature
