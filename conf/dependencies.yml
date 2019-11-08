@@ -22,11 +22,11 @@
 #         - "new Blob() should not save the content into gridfs":https://github.com/greenlaw110/play-morphia/issues/107
 #         - "Morphia 1.2.14 is missing javassist dependency":https://github.com/greenlaw110/play-morphia/issues/106
 # 1.2.14  - Add <code>asMap</code> method to <code>AggregationResult</code> class
-#         _ "Model.cloud() function error":https://github.com/greenlaw110/play-morphia/issues/105
-#         _ "Group by field":https://github.com/greenlaw110/play-morphia/issues/102
-#         _ "Model.groupAverage doesn't respect Model.Column annotationhttps://github.com/greenlaw110/play-morphia/issues/98":
-#         _ "Application.conf morphia.autoTimestamp doesn't work at all":https://github.com/greenlaw110/play-morphia/issues/97
-#         _ "@Unique validation not working correctly when updating record":https://github.com/greenlaw110/play-morphia/issues/96
+#         DEFAULT "Model.cloud() function error":https://github.com/greenlaw110/play-morphia/issues/105
+#         DEFAULT "Group by field":https://github.com/greenlaw110/play-morphia/issues/102
+#         DEFAULT "Model.groupAverage doesn't respect Model.Column annotationhttps://github.com/greenlaw110/play-morphia/issues/98":
+#         DEFAULT "Application.conf morphia.autoTimestamp doesn't work at all":https://github.com/greenlaw110/play-morphia/issues/97
+#         DEFAULT "@Unique validation not working correctly when updating record":https://github.com/greenlaw110/play-morphia/issues/96
 # 1.2.13b - enable passing <code>null</code> to Model._update()
 #         - Hook <code>_update</code> to <code>@OnUpdate</code> and <code>@Updated</code> annotated functions
 #         - Cache entity feature
@@ -47,18 +47,11 @@
 #        - trim value when processing where statement in Factory.fetch
 # 1.2.5 - mavenize project
 # 1.2.4d - Add BlobGsonAdapter and ModelFactoryGsonAdapter utilities
-self: play -> play-morphia 1.6.0
+self: play -> play-morphia 1.7.0
 require:
     - play 1.5.+
-    - org.mongodb -> mongo-java-driver 3.0.1
-    - org.mongodb.morphia -> morphia 1.0.1
-    - org.osgl -> osgl-tool 0.3-SNAPSHOT
-    - org.osgl -> osgl-logging 0.3-SNAPSHOT
-    - org.osgl -> osgl-storage 0.3-SNAPSHOT
-
-repositories:
-    - osgl:
-            type: iBiblio
-            root: "https://oss.sonatype.org/content/repositories/snapshots/"
-            contains:
-                - org.osgl -> *
+    - org.mongodb -> mongo-java-driver 3.9.1
+    - org.mongodb.morphia -> morphia 1.3.2
+    - org.osgl -> osgl-tool 1.19.0
+    - org.osgl -> osgl-logging 1.3.0
+    - org.osgl -> osgl-storage 1.8.0

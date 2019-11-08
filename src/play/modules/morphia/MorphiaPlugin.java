@@ -14,9 +14,8 @@ import org.mongodb.morphia.mapping.Mapper;
 import org.mongodb.morphia.mapping.validation.ConstraintViolationException;
 import org.mongodb.morphia.query.Criteria;
 import org.mongodb.morphia.query.Query;
-import org.osgl._;
+import org.osgl.$;
 import org.osgl.storage.IStorageService;
-import org.osgl.storage.KeyGenerator;
 import org.osgl.util.C;
 import org.osgl.util.E;
 import org.osgl.util.S;
@@ -374,36 +373,8 @@ public final class MorphiaPlugin extends PlayPlugin {
         return new MongoClient(new ServerAddress(url), credentials);
     }
 
-    public static Map<String, Class<? extends IStorageService>> ssMap = C.newMap("gfs", GridFSStorageService.class);
-
     public static Map<String, Map<String, String>> ssConfs = C.newMap();
     public static String defaultStorage = "gfs";
-
-    public static Class<? extends IStorageService> getStorageClass(String storage) {
-        if (!configured_) {
-            // Rythm is precompiling app code before morphia plugin configured, let's
-            // do it here
-            new MorphiaPlugin().onConfigurationRead();
-        }
-        return ssMap.get(storage);
-    }
-
-    public static Map<String, String> getStorageConfig(String storage) {
-        Map<String, String> m = ssConfs.get(storage);
-        if (null == m) {
-            return C.map();
-        } else {
-            return C.newMap(m);
-        }
-    }
-
-    public static Class<? extends IStorageService> getDefaultStorageClass() {
-        return ssMap.get(defaultStorage);
-    }
-
-    public static Map<String, String> getDefaultStorageConf() {
-        return ssConfs.get(defaultStorage);
-    }
 
     public static Boolean crud = null;
 
@@ -453,12 +424,8 @@ public final class MorphiaPlugin extends PlayPlugin {
                 if (null == ssCls) {
                     E.invalidConfiguration("cannot find serviceImpl for morphia storage: %s", s);
                 }
-                Class<? extends IStorageService> cls = _.classForName(ssCls);
-                ssMap.put(s, cls);
+                Class<? extends IStorageService> cls = $.classForName(ssCls);
                 ssConfs.put(s, ssConf);
-            }
-            if (!ssMap.keySet().contains(defaultStorage)) {
-                E.invalidConfiguration("default storage[%s] implementation not found", defaultStorage);
             }
         }
         configured_ = true;
@@ -1066,8 +1033,7 @@ public final class MorphiaPlugin extends PlayPlugin {
                 if (Modifier.isStatic(f.getModifiers())) {
                     continue;
                 }
-                if (f.isAnnotationPresent(Transient.class)
-                        && !f.getType().equals(Blob.class)) {
+                if (f.isAnnotationPresent(Transient.class)) {
                     continue;
                 }
                 Model.Property mp = buildProperty(f);

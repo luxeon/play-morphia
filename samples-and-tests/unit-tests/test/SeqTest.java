@@ -1,18 +1,9 @@
-
-import org.mongodb.morphia.Datastore;
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBObject;
-import com.mongodb.gridfs.GridFSDBFile;
-import models.User;
 import org.junit.Before;
 import org.junit.Test;
-import play.modules.morphia.Blob;
+import org.mongodb.morphia.Datastore;
 import play.modules.morphia.MorphiaPlugin;
 import play.modules.morphia.Seq;
 import play.test.UnitTest;
-
-import java.io.File;
-import java.util.List;
 
 
 public class SeqTest extends UnitTest {

@@ -86,7 +86,7 @@ public class Seq {
 
     public static Seq next(String name) {
         Datastore ds = MorphiaPlugin.ds();
-        Query<Seq> q = ds.find(Seq.class, "_id", name);
+        Query<Seq> q = ds.find(Seq.class).filter("_id", name);
         UpdateOperations<Seq> o = ds.createUpdateOperations(Seq.class).inc("value");
         Seq newId = ds.findAndModify(q, o);
         if (null == newId) {
@@ -103,13 +103,11 @@ public class Seq {
 
     public static void init(String name) {
         Datastore ds = MorphiaPlugin.ds();
-        Query<Seq> q = ds.find(Seq.class, "_id", name);
-        if (0 == q.countAll()) {
+        Query<Seq> q = ds.find(Seq.class).filter("_id", name);
+        if (0 == q.count()) {
             Seq newId = new Seq(name);
             ds.save(newId);
         }
-
-        return;
     }
 
     public static void init(Class<?> clz) {

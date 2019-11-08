@@ -1,21 +1,21 @@
 package models.why;
 
-import java.util.List;
-
+import com.mongodb.MongoClient;
 import org.mongodb.morphia.Datastore;
 import org.mongodb.morphia.Morphia;
-import com.mongodb.Mongo;
+
+import java.util.List;
 
 public class PureMorphiaApp {
 
-    private static Datastore getDatastore() throws Exception {
+    private static Datastore getDatastore() {
         Morphia morphia = new Morphia();
         PureMorphiaUser.ensureMapped(morphia);
-        Mongo mongo = new Mongo();
-        return morphia.createDatastore(mongo, "mydatabase");
+        MongoClient client = new MongoClient();
+        return morphia.createDatastore(client, "mydatabase");
     }
 
-    public static void crud() throws Exception {
+    public static void crud() {
         Datastore ds = getDatastore();
         // create
         PureMorphiaUser user = new PureMorphiaUser("John", "Smith");
@@ -29,7 +29,7 @@ public class PureMorphiaApp {
         ds.delete(user2);
     }
     
-    public static void query() throws Exception {
+    public static void query() {
         Datastore ds = getDatastore();
         // find
         List<PureMorphiaUser> users = ds.createQuery(PureMorphiaUser.class)
